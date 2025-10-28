@@ -36,24 +36,44 @@ export async function POST(req: NextRequest) {
   }
 
   if (intent.task === "compare" && intent.compareModels.length >= 2) {
-    const all = (await prisma.phone.findMany()).map(hydratePhone);
-    const items = all.filter((p:any) => intent.compareModels.some(m => `${p.brand} ${p.model}`.toLowerCase() === m.toLowerCase() || p.model.toLowerCase() === m.toLowerCase()));
-    return NextResponse.json({ type: "compare", items });
-  }
-
-  // discover/filter/details → search + rank
-  const { maxPrice, softCeil } = parseBudgetNear(intent.budgetInr ?? intent.hardFilters.maxPrice ?? null);
   const all = (await prisma.phone.findMany()).map(hydratePhone);
 
-  function passes(p: any, limit?: number | null) {
-    if (intent.brands.length && !intent.brands.map(b=>b.toLowerCase()).includes(p.brand.toLowerCase())) return false;
-    if (intent.hardFilters.os && p.os !== intent.hardFilters.os) return false;
-    if (limit && p.price > limit) return false;
-    if (intent.hardFilters.needsOis && !(p.camera as any)?.ois) return false;
-    if (intent.hardFilters.compact && ((p.display as any)?.sizeInches ?? 7) >= 6.2) return false;
-    if (intent.hardFilters.minBatteryMah && ((p.battery as any)?.capacityMah ?? 0) < intent.hardFilters.minBatteryMah) return false;
-    return true;
-  }
+  // Explicitly type both 'p' and 'm' to avoid implicit any errors
+  const items = all.filter((p: any) =>
+    intent.compareModels.some((m: string) =>
+      `${p.brand} ${p.model}`.toLowerCase() === m.toLowerCase() ||
+      p.model.toLowerCase() === m.toLowerCase()
+    )
+  );
+
+  return NextResponse.json({ type: "compare", items });
+}
+
+// discover/filter/details → search + rank
+const { maxPrice, softCeil } = parseBudgetNear(
+  intent.budgetInr ?? intent.hardFilters.maxPrice ?? null
+);
+const all = (await prisma.phone.findMany()).map(hydratePhone);
+
+// Add types here too for clarity
+function passes(p: any, limit?: number | null) {
+  if (
+    intent.brands.length &&
+    !intent.brands.map((b: string) => b.toLowerCase()).includes(p.brand.toLowerCase())
+  )
+    return false;
+  if (intent.hardFilters.os && p.os !== intent.hardFilters.os) return false;
+  if (limit && p.price > limit) return false;
+  if (intent.hardFilters.needsOis && !(p.camera as any)?.ois) return false;
+  if (intent.hardFilters.compact && ((p.display as any)?.sizeInches ?? 7) >= 6.2)
+    return false;
+  if (
+    intent.hardFilters.minBatteryMah &&
+    ((p.battery as any)?.capacityMah ?? 0) < intent.hardFilters.minBatteryMah
+  )
+    return false;
+  return true;
+}
 
   let filtered = all.filter(p => passes(p, maxPrice ?? null));
   if (filtered.length === 0 && softCeil && (!maxPrice || softCeil > maxPrice)) {
