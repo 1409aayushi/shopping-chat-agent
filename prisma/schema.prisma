@@ -1,29 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model Phone {
-  id          String   @id @default(cuid())
-  brand       String
-  model       String
-  os          String
-  price       Int
-  displayJson String?  // JSON text for { sizeInches, panel, refreshHz }
-  cameraJson  String?  // JSON text for { mainMp, ois, eis, ultrawideMp?, telephotoMp? }
-  batteryJson String?  // JSON text for { capacityMah, chargingW }
-  soc         String
-  ramGb       Int
-  storageGb   Int
-  weightG     Int?
-  dimsMm      String?
-  releaseDate DateTime?
-  imagesJson   String? // JSON text array of strings
-  highlightsJson String? // JSON text array of strings
+  id             String    @id @default(cuid())
+  brand          String
+  model          String
+  os             String
+  price          Int
+  displayJson    String?
+  cameraJson     String?
+  batteryJson    String?
+  soc            String
+  ramGb          Int
+  storageGb      Int
+  weightG        Int?
+  dimsMm         String?
+  releaseDate    DateTime?
+  imagesJson     String?
+  highlightsJson String?
 }
-
-
