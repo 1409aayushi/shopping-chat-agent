@@ -30,46 +30,114 @@ export default function Chat() {
   }
 
   async function send() {
-    if (!input.trim()) return;
-    const text = input.trim();
-    setMessages(m => [...m, { role:"user", text }]);
-    setInput("");
-    // Client-side details intent handling
-    const detailsId = findDetailsTarget(text);
-    if (detailsId) {
-      await onMore(detailsId);
-      return;
-    }
-    const res = await fetch('/api/chat', { method:'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }) });
-    const data = await res.json();
-    // Render minimal assistant message and side panel data
-    if (data.type === 'refusal' || data.type === 'error') {
-      setMessages(m => [...m, { role:'assistant', text: data.reply }]);
-      setResults(null);
-    } else if (data.type === 'explain') {
-      setMessages(m => [...m, { role:'assistant', text: `**${data.explain.title}**\n\n${data.explain.body}` }]);
-      setResults(null);
-    } else if (data.type === 'compare') {
-      setMessages(m => [...m, { role:'assistant', text: `Here’s a side‑by‑side comparison.` }]);
-      setResults({ mode: 'compare', items: data.items });
-    } else if (data.type === 'recommend') {
-      if (!Array.isArray(data.items) || data.items.length === 0) {
-        const note = data.note || 'I couldn’t find matches. Try raising the budget or loosening filters.';
-        setMessages(m => [...m, { role:'assistant', text: note }]);
-        setResults({ mode: 'recommend', items: [], note });
-      } else {
-        setMessages(m => [...m, { role:'assistant', text: `Here are some options I recommend:` }]);
-        setResults({ mode: 'recommend', items: data.items });
+  if (!input.trim()) return;
+
+  const text = input.trim();
+  setMessages(m => [...m, { role: "user", text }]);
+  setInput("");
+
+  try {
+    // Only try details intent if we already have results
+    if (results?.mode === 'recommend' && Array.isArray(results.items) && results.items.length > 0) {
+      const detailsId = findDetailsTarget(text);
+      if (detailsId) {
+        await onMore(detailsId);
+        return;
       }
     }
-  }
 
-  async function onMore(id: string) {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Chat API failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    if (!data || !data.type) {
+      throw new Error("Invalid response from chat API");
+    }
+
+    if (data.type === 'refusal' || data.type === 'error') {
+      setMessages(m => [...m, { role: 'assistant', text: data.reply ?? 'Something went wrong.' }]);
+      setResults(null);
+      return;
+    }
+
+    if (data.type === 'explain') {
+      setMessages(m => [
+        ...m,
+        { role: 'assistant', text: `**${data.explain.title}**\n\n${data.explain.body}` }
+      ]);
+      setResults(null);
+      return;
+    }
+
+    if (data.type === 'compare') {
+      setMessages(m => [...m, { role: 'assistant', text: `Here’s a side-by-side comparison.` }]);
+      setResults({ mode: 'compare', items: data.items ?? [] });
+      return;
+    }
+
+    if (data.type === 'recommend') {
+      if (!Array.isArray(data.items) || data.items.length === 0) {
+        const note = data.note || 'I couldn’t find matches. Try adjusting the filters.';
+        setMessages(m => [...m, { role: 'assistant', text: note }]);
+        setResults({ mode: 'recommend', items: [], note });
+      } else {
+        setMessages(m => [...m, { role: 'assistant', text: `Here are some options I recommend:` }]);
+        setResults({ mode: 'recommend', items: data.items });
+      }
+      return;
+    }
+
+    // Fallback
+    setMessages(m => [...m, { role: 'assistant', text: 'I did not understand that request.' }]);
+    setResults(null);
+
+  } catch (err) {
+    console.error(err);
+    setMessages(m => [...m, { role: 'assistant', text: 'Something went wrong. Please try again.' }]);
+    setResults(null);
+  }
+}
+
+async function onMore(id: string) {
+  try {
     const res = await fetch(`/api/details?id=${id}`);
+
+    if (!res.ok) {
+      throw new Error(`Details API failed: ${res.status}`);
+    }
+
     const data = await res.json();
     const p = data.item;
-    setMessages(m => [...m, { role:'assistant', text: `**${p.brand} ${p.model}** — ₹${p.price.toLocaleString('en-IN')}\n\nKey specs: ${p.camera?.mainMp ?? '—'}MP main${p.camera?.ois?' with OIS':''}, ${p.battery?.capacityMah ?? '—'}mAh, ${p.display?.sizeInches ?? '—'}\" ${p.display?.panel ?? ''} ${p.display?.refreshHz? p.display.refreshHz+'Hz':''}.` }]);
+
+    if (!p) {
+      throw new Error("No product data returned");
+    }
+
+    setMessages(m => [
+      ...m,
+      {
+        role: 'assistant',
+        text: `**${p.brand} ${p.model}** — ₹${p.price.toLocaleString('en-IN')}
+
+Key specs:
+• Camera: ${p.camera?.mainMp ?? '—'}MP${p.camera?.ois ? ' (OIS)' : ''}
+• Battery: ${p.battery?.capacityMah ?? '—'}mAh
+• Display: ${p.display?.sizeInches ?? '—'}" ${p.display?.panel ?? ''} ${p.display?.refreshHz ? p.display.refreshHz + 'Hz' : ''}`
+      }
+    ]);
+  } catch (err) {
+    console.error(err);
+    setMessages(m => [...m, { role: 'assistant', text: 'Unable to load details.' }]);
   }
+}
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -82,7 +150,13 @@ export default function Chat() {
           ))}
         </div>
         <div className="mt-2 flex gap-2">
-          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="Ask: Best camera under ₹30k?" className="flex-1 border rounded-xl px-3 py-2" />
+          <input value={input} onChange={e=>setInput(e.target.value)}onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+            }
+            }}
+            placeholder="Ask: Best camera under ₹30k?" className="flex-1 border rounded-xl px-3 py-2" />
           <button onClick={send} className="px-4 py-2 rounded-xl bg-gray-900 text-white">Send</button>
         </div>
       </div>
