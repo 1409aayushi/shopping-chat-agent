@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   const { brands = [], os = null, maxPrice = null, needsOis = null, compact = null, minBatteryMah = null } = body ?? {};
 
   const all = (await prisma.phone.findMany()).map(hydratePhone);
-  let rows = all.filter(p => {
+  let rows = all.filter((p: { brand: string; os: any; price: number; camera: any; display: any; battery: any; }) => {
     if (brands.length && !brands.map((b:string)=>b.toLowerCase()).includes(p.brand.toLowerCase())) return false;
     if (os && p.os !== os) return false;
     if (maxPrice && p.price > maxPrice) return false;

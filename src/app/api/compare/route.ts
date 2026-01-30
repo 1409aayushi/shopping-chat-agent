@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Provide 2–3 model names" }, { status: 400 });
   }
   const all = (await prisma.phone.findMany()).map(hydratePhone);
-  const matched = all.filter(p => models.some((m:string)=> `${p.brand} ${p.model}`.toLowerCase() === m.toLowerCase() || p.model.toLowerCase() === m.toLowerCase()));
+  const matched = all.filter((p: { brand: any; model: string; }) => models.some((m:string)=> `${p.brand} ${p.model}`.toLowerCase() === m.toLowerCase() || p.model.toLowerCase() === m.toLowerCase()));
   return NextResponse.json({ items: matched });
 }
 

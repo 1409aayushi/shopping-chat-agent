@@ -75,20 +75,20 @@ function passes(p: any, limit?: number | null) {
   return true;
 }
 
-  let filtered = all.filter(p => passes(p, maxPrice ?? null));
+  let filtered = all.filter((p: any) => passes(p, maxPrice ?? null));
   if (filtered.length === 0 && softCeil && (!maxPrice || softCeil > maxPrice)) {
-    filtered = all.filter(p => passes(p, softCeil));
+    filtered = all.filter((p: any) => passes(p, softCeil));
   }
 
   // scoring
-  const scored = filtered.map(p => ({ ...p, __score: scorePhone(p as any, {
+  const scored = filtered.map((p: any) => ({ ...p, __score: scorePhone(p as any, {
     compact: intent.hardFilters.compact ?? undefined,
     needsOis: intent.hardFilters.needsOis ?? undefined,
     minBatteryMah: intent.hardFilters.minBatteryMah ?? undefined,
-  })})).sort((a,b)=> b.__score - a.__score);
+  })})).sort((a: { __score: number; },b: { __score: number; })=> b.__score - a.__score);
 
   // rationale
-  const top = scored.slice(0, 3).map(p => ({
+  const top = scored.slice(0, 3).map((p: { id: any; brand: any; model: any; price: any; highlights: any; }) => ({
     id: p.id,
     title: `${p.brand} ${p.model}`,
     price: p.price,
