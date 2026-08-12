@@ -1,6 +1,6 @@
 -- CreateTable
 CREATE TABLE "Phone" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "brand" TEXT NOT NULL,
     "model" TEXT NOT NULL,
     "os" TEXT NOT NULL,
@@ -13,7 +13,10 @@ CREATE TABLE "Phone" (
     "storageGb" INTEGER NOT NULL,
     "weightG" INTEGER,
     "dimsMm" TEXT,
-    "releaseDate" DATETIME,
+    "releaseDate" TIMESTAMP(3),
     "imagesJson" TEXT,
-    "highlightsJson" TEXT
+    "highlightsJson" TEXT,
+
+    CONSTRAINT "Phone_pkey" PRIMARY KEY ("id")
 );
+
